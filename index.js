@@ -75,12 +75,12 @@ app.get("/whoami", verifyToken, (req, res) => {
 });
 
 app.post("/login", async (req, res) => {
-  const { username, password } = req.body;
+  const { email, password } = req.body;
 
   try {
     const result = await pool.query(
-      `SELECT user_id, username, password_hash FROM users_social WHERE username = $1`,
-      [username],
+      `SELECT user_id, username, password_hash FROM users_social WHERE email = $1`,
+      [email],
     );
 
     if (result.rows.length === 0) {
@@ -94,7 +94,7 @@ app.post("/login", async (req, res) => {
       return res.status(401).json({ error: "Invalid username or password" });
     }
 
-    const accessToken = jwt.sign(
+    const token = jwt.sign(
       { userId: user.user_id, username: user.username },
       process.env.JWT_SECRET,
       { expiresIn: "15m" },
@@ -106,7 +106,7 @@ app.post("/login", async (req, res) => {
       { expiresIn: "7d" },
     );
 
-    res.json({ accessToken, refreshToken });
+    res.json({ token, refreshToken });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Something went wrong" });
@@ -139,9 +139,10 @@ app.post("/friendships", verifyToken, async (req, res) => {
 
     //add ids into friendships table
     result = await pool.query(
-      `INSERT INTO friendships_social (user_id_1, user_id_2) VALUES ($1, $2) RETURNING user_id_1, user_id_2`,
+      `INSERT INTO friendships_social (user_id_1, user_id_2) VALUES ($1, $2) RETURNING *`,
       [senderId, receiverId],
     );
+    console.log("friendships is:" + result.rows);
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error(err);
@@ -175,12 +176,12 @@ app.put("/friendships/:requestorId", verifyToken, async (req, res) => {
 
 app.post("/posts", verifyToken, async (req, res) => {
   const userId = req.user.userId;
-  const { content, visibility } = req.body;
+  const { title, content, visibility } = req.body;
 
   try {
     result = await pool.query(
-      `INSERT INTO posts_social (content, visibility, user_id) VALUES ($1, $2, $3) RETURNING *`,
-      [content, visibility, userId],
+      `INSERT INTO posts_social (title, content, visibility, user_id) VALUES ($1, $2, $3, $4) RETURNING *`,
+      [title, content, visibility, userId],
     );
 
     if (result.rows.length === 0) {
@@ -193,12 +194,25 @@ app.post("/posts", verifyToken, async (req, res) => {
   }
 });
 
+//get users
+app.get("/users", verifyToken, async (req, res) => {
+  const userId = req.user.userId;
+
+  try {
+    const result = await pool.query(`SELECT * FROM users_social`);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Something went wrong" });
+  }
+});
+
 app.get("/posts", verifyToken, async (req, res) => {
   const userId = req.user.userId;
 
   try {
     const result = await pool.query(
-      `SELECT p.post_id,
+      `SELECT p.post_id, p.title,
     p.content,
     p.visibility,
     p.created_at,
@@ -216,6 +230,7 @@ WHERE
 ORDER BY p.created_at DESC`,
       [userId],
     );
+    // console.log(result.rows);
     res.json(result.rows);
   } catch (err) {
     console.error(err);

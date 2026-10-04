@@ -1,1 +1,516 @@
-Express starter
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SantaiSpace API Documentation</title>
+    <style>
+      :root {
+        --bg-color: #0f172a;
+        --sidebar-bg: #1e293b;
+        --card-bg: #1e293b;
+        --text-color: #f8fafc;
+        --text-muted: #94a3b8;
+        --accent-color: #38bdf8;
+        --border-color: #334155;
+        --badge-auth: #f59e0b;
+        --method-get: #10b981;
+        --method-post: #3b82f6;
+        --method-put: #a855f7;
+        --code-bg: #090d16;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+          Arial, sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        line-height: 1.6;
+        display: flex;
+      }
+
+      /* Sidebar Navigation */
+      nav {
+        width: 260px;
+        height: 100vh;
+        background-color: var(--sidebar-bg);
+        position: fixed;
+        top: 0;
+        left: 0;
+        overflow-y: auto;
+        border-right: 1px solid var(--border-color);
+        padding: 2rem 1rem;
+      }
+
+      nav h1 {
+        font-size: 1.25rem;
+        margin-bottom: 1.5rem;
+        color: var(--accent-color);
+        padding-left: 0.5rem;
+      }
+
+      nav h2 {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-muted);
+        margin: 1.5rem 0 0.5rem 0;
+        padding-left: 0.5rem;
+      }
+
+      nav ul {
+        list-style: none;
+      }
+
+      nav a {
+        display: block;
+        padding: 0.5rem;
+        color: var(--text-color);
+        text-decoration: none;
+        font-size: 0.95rem;
+        border-radius: 4px;
+        transition: background 0.2s;
+      }
+
+      nav a:hover {
+        background-color: var(--border-color);
+        color: var(--accent-color);
+      }
+
+      /* Main Content Area */
+      main {
+        margin-left: 260px;
+        max-width: 1000px;
+        width: calc(100% - 260px);
+        padding: 3rem;
+      }
+
+      header {
+        margin-bottom: 3rem;
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 2rem;
+      }
+
+      header p {
+        color: var(--text-muted);
+        margin-top: 0.5rem;
+        font-size: 1.1rem;
+      }
+
+      /* API Endpoint Cards */
+      section {
+        background-color: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 2rem;
+        margin-bottom: 2.5rem;
+        scroll-margin-top: 2rem;
+      }
+
+      .endpoint-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-bottom: 1rem;
+      }
+
+      .method {
+        font-family: monospace;
+        font-weight: bold;
+        padding: 0.25rem 0.75rem;
+        border-radius: 4px;
+        color: #fff;
+        font-size: 0.9rem;
+      }
+
+      .method.get {
+        background-color: var(--method-get);
+      }
+      .method.post {
+        background-color: var(--method-post);
+      }
+      .method.put {
+        background-color: var(--method-put);
+      }
+
+      .url {
+        font-family: monospace;
+        font-size: 1.1rem;
+        font-weight: 600;
+      }
+
+      .badge {
+        font-size: 0.75rem;
+        font-weight: bold;
+        text-transform: uppercase;
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+      }
+
+      .badge.auth {
+        background-color: rgba(245, 158, 11, 0.15);
+        color: var(--badge-auth);
+        border: 1px solid var(--badge-auth);
+      }
+
+      .description {
+        color: var(--text-muted);
+        margin-bottom: 1.5rem;
+      }
+
+      /* Details & Code Styling */
+      h4 {
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        margin: 1rem 0 0.5rem 0;
+        letter-spacing: 0.05em;
+      }
+
+      pre {
+        background-color: var(--code-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        padding: 1rem;
+        overflow-x: auto;
+        margin-bottom: 1rem;
+      }
+
+      code {
+        font-family:
+          "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        font-size: 0.9rem;
+        color: #e2e8f0;
+      }
+
+      ul.details-list {
+        list-style: none;
+        padding-left: 0.5rem;
+        margin-bottom: 1rem;
+      }
+
+      ul.details-list li {
+        font-size: 0.95rem;
+        margin-bottom: 0.25rem;
+      }
+
+      /* Responsive tweak */
+      @media (max-width: 768px) {
+        body {
+          flex-direction: column;
+        }
+        nav {
+          width: 100%;
+          height: auto;
+          position: relative;
+        }
+        main {
+          margin-left: 0;
+          width: 100%;
+          padding: 1.5rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <h1>SantaiSpace API Doc</h1>
+
+      <h2>Authentication</h2>
+      <ul>
+        <li><a href="#signup">POST /signup</a></li>
+        <li><a href="#login">POST /login</a></li>
+        <li><a href="#refresh">POST /refresh</a></li>
+        <li><a href="#whoami">GET /whoami</a></li>
+      </ul>
+
+      <h2>Friendships</h2>
+      <ul>
+        <li><a href="#send-friend">POST /friendships</a></li>
+        <li><a href="#update-friend">PUT /friendships/:id</a></li>
+      </ul>
+
+      <h2>Posts</h2>
+      <ul>
+        <li><a href="#create-post">POST /posts</a></li>
+        <li><a href="#get-feed">GET /posts</a></li>
+      </ul>
+    </nav>
+
+    <main>
+      <header>
+        <h2>SantaiSpace API Reference</h2>
+        <p>
+          Developer interface documentation for managing authentications,
+          relationships, and user feeds.
+        </p>
+      </header>
+
+      <!-- Authentication Section -->
+      <h2 style="margin-bottom: 1.5rem; color: var(--accent-color)">
+        1. Authentication Endpoints
+      </h2>
+
+      <section id="signup">
+        <div class="endpoint-header">
+          <span class="method post">POST</span>
+          <span class="url">/signup</span>
+        </div>
+        <p class="description">
+          Register a new user account with a securely hashed password.
+        </p>
+
+        <h4>Request Body</h4>
+        <pre><code>{
+  "username": "johndoe",
+  "email": "john@example.com",
+  "password": "securepassword123"
+}</code></pre>
+
+        <h4>Success Response (201 Created)</h4>
+        <pre><code>{
+  "user_id": 1,
+  "username": "johndoe",
+  "email": "john@example.com"
+}</code></pre>
+      </section>
+
+      <section id="login">
+        <div class="endpoint-header">
+          <span class="method post">POST</span>
+          <span class="url">/login</span>
+        </div>
+        <p class="description">
+          Authenticate credentials to fetch an access token and a refresh token.
+        </p>
+
+        <h4>Request Body</h4>
+        <pre><code>{
+  "email": "john@example.com",
+  "password": "securepassword123"
+}</code></pre>
+
+        <h4>Success Response (200 OK)</h4>
+        <pre><code>{
+  "token": "eyJhbGciOi...",
+  "refreshToken": "eyJhbGciOi..."
+}</code></pre>
+      </section>
+
+      <section id="refresh">
+        <div class="endpoint-header">
+          <span class="method post">POST</span>
+          <span class="url">/refresh</span>
+        </div>
+        <p class="description">
+          Exchange a valid long-lived refresh token for a fresh 15-minute access
+          token.
+        </p>
+
+        <h4>Request Body</h4>
+        <pre><code>{
+  "refreshToken": "eyJhbGciOi..."
+}</code></pre>
+
+        <h4>Success Response (200 OK)</h4>
+        <pre><code>{
+  "accessToken": "eyJhbGciOi..."
+}</code></pre>
+      </section>
+
+      <section id="whoami">
+        <div class="endpoint-header">
+          <span class="method get">GET</span>
+          <span class="url">/whoami</span>
+          <span class="badge auth">🔒 Authenticated</span>
+        </div>
+        <p class="description">
+          Extracts and returns user identity metadata claims embedded in the
+          current access token.
+        </p>
+
+        <h4>Headers</h4>
+        <ul class="details-list">
+          <li><code>Authorization: Bearer &lt;token&gt;</code></li>
+        </ul>
+
+        <h4>Success Response (200 OK)</h4>
+        <pre><code>{
+  "userId": 1,
+  "username": "johndoe"
+}</code></pre>
+      </section>
+
+      <!-- Friendships Section -->
+      <h2 style="margin-bottom: 1.5rem; color: var(--accent-color)">
+        2. Friendship Endpoints
+      </h2>
+
+      <section id="send-friend">
+        <div class="endpoint-header">
+          <span class="method post">POST</span>
+          <span class="url">/friendships</span>
+          <span class="badge auth">🔒 Authenticated</span>
+        </div>
+        <p class="description">
+          Initiate a social connection request to another unique user id.
+        </p>
+
+        <h4>Request Body</h4>
+        <pre><code>{
+  "receiverId": 2
+}</code></pre>
+
+        <h4>Success Response (201 Created)</h4>
+        <pre><code>{
+  "user_id_1": 1,
+  "user_id_2": 2
+}</code></pre>
+      </section>
+
+      <section id="update-friend">
+        <div class="endpoint-header">
+          <span class="method put">PUT</span>
+          <span class="url">/friendships/:requestorId</span>
+          <span class="badge auth">🔒 Authenticated</span>
+        </div>
+        <p class="description">
+          Accept, decline, or update the status of an incoming or existing
+          relationship connection request.
+        </p>
+
+        <h4>URL Parameters</h4>
+        <ul class="details-list">
+          <li>
+            <code>requestorId</code>
+            <span style="color: var(--text-muted)">(number)</span> — The user ID
+            of the person who initiated or belongs to the relationship.
+          </li>
+        </ul>
+
+        <h4>Headers</h4>
+        <ul class="details-list">
+          <li><code>Authorization: Bearer &lt;accessToken&gt;</code></li>
+          <li><code>Content-Type: application/json</code></li>
+        </ul>
+
+        <h4>Request Body</h4>
+        <pre><code>{
+  "status": "accepted"
+}</code></pre>
+
+        <h4>Success Response (200 OK)</h4>
+        <pre><code>{
+  "user_id_1": 2,
+  "user_id_2": 1,
+  "status": "accepted"
+}</code></pre>
+
+        <h4>Error Responses</h4>
+        <pre><code>// 404 Not Found
+{ "error": "Friendship not found" }
+
+// 500 Internal Server Error
+{ "error": "Something went wrong" }</code></pre>
+      </section>
+
+      <!-- Posts Section -->
+      <h2 style="margin-bottom: 1.5rem; color: var(--accent-color)">
+        3. Post Endpoints
+      </h2>
+
+      <section id="create-post">
+        <div class="endpoint-header">
+          <span class="method post">POST</span>
+          <span class="url">/posts</span>
+          <span class="badge auth">🔒 Authenticated</span>
+        </div>
+        <p class="description">
+          Create and store a new post entity bound to the authenticated user
+          session.
+        </p>
+
+        <h4>Headers</h4>
+        <ul class="details-list">
+          <li><code>Authorization: Bearer &lt;token&gt;</code></li>
+          <li><code>Content-Type: application/json</code></li>
+        </ul>
+
+        <h4>Request Body</h4>
+        <pre><code>{
+  "title": "My Journey into Code",
+  "content": "Exploring backend databases with Express and Postgres today!",
+  "visibility": "Public"
+}</code></pre>
+
+        <h4>Success Response (200 OK)</h4>
+        <pre><code>{
+  "post_id": 42,
+  "title": "My Journey into Code",
+  "content": "Exploring backend databases with Express and Postgres today!",
+  "visibility": "Public",
+  "user_id": 1,
+  "created_at": "2026-10-04T19:57:00.000Z"
+}</code></pre>
+
+        <h4>Error Responses</h4>
+        <pre><code>// 404 Not Found
+{ "error": "Post not inserted" }
+
+// 500 Internal Server Error
+{ "error": "Something went wrong" }</code></pre>
+      </section>
+
+      <section id="get-feed">
+        <div class="endpoint-header">
+          <span class="method get">GET</span>
+          <span class="url">/posts</span>
+          <span class="badge auth">🔒 Authenticated</span>
+        </div>
+        <p class="description">
+          Retrieve a descending chronological timeline feed containing visible
+          'Public' posts and authorized 'Friends-only' items.
+        </p>
+
+        <h4>Headers</h4>
+        <ul class="details-list">
+          <li><code>Authorization: Bearer &lt;token&gt;</code></li>
+        </ul>
+
+        <h4>Success Response (200 OK)</h4>
+        <pre><code>[
+  {
+    "post_id": 42,
+    "title": "My Journey into Code",
+    "content": "Exploring backend databases with Express and Postgres today!",
+    "visibility": "Public",
+    "created_at": "2026-10-04T19:57:00.000Z",
+    "user_id": 1,
+    "username": "johndoe"
+  },
+  {
+    "post_id": 19,
+    "title": "Weekend Plans",
+    "content": "Hosting a small backyard barbecue for the team.",
+    "visibility": "Friends-only",
+    "created_at": "2026-10-03T14:20:00.000Z",
+    "user_id": 2,
+    "username": "janedoe"
+  }
+]</code></pre>
+
+        <h4>Error Responses</h4>
+        <pre><code>// 500 Internal Server Error
+{ "error": "Something went wrong" }</code></pre>
+      </section>
+    </main>
+  </body>
+</html>
