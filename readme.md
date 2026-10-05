@@ -72,7 +72,7 @@ JWT_REFRESH_SECRET=your_even_more_secure_refresh_token_secret_key
    ```
 2. Start the API application engine:
    ```bash
-   node app.js
+   node index.js
    ```
    _The server defaults to port `3000` (`http://localhost:3000`)._
 
