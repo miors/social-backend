@@ -8,7 +8,7 @@ const cors = require("cors");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
-console.log(process.env.DATABASE_URL);
+// console.log(process.env.DATABASE_URL);
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
@@ -29,7 +29,21 @@ app.post("/signup", async (req, res) => {
       "INSERT INTO users_social (username, email, password_hash) VALUES ($1, $2, $3) RETURNING user_id, username, email",
       [username, email, hash],
     );
-    res.status(201).json(result.rows[0]);
+    const user = result.rows[0];
+
+    const token = jwt.sign(
+      { userId: user.user_id, username: user.username },
+      process.env.JWT_SECRET,
+      { expiresIn: "15m" },
+    );
+
+    const refreshToken = jwt.sign(
+      { userId: user.user_id, username: user.username },
+      process.env.JWT_REFRESH_SECRET,
+      { expiresIn: "7d" },
+    );
+
+    res.status(201).json({ token, refreshToken });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Something went wrong" });
@@ -114,43 +128,75 @@ app.post("/login", async (req, res) => {
 });
 
 app.post("/friendships", verifyToken, async (req, res) => {
-  console.log("called");
   const senderId = req.user.userId;
   const { receiverId } = req.body;
 
-  if (senderId === receiverId)
+  if (senderId === receiverId) {
     return res.status(400).json({ error: "Cannot request yourself." });
+  }
 
   try {
-    //check if user/sender already in DB
-    let result = await pool.query(
-      `SELECT user_id_1, user_id_2 
-   FROM friendships_social 
-   WHERE (user_id_1 = $1 AND user_id_2 = $2) 
-      OR (user_id_1 = $2 AND user_id_2 = $1)`,
+    // Check if any relationship already exists between the two users
+    const result = await pool.query(
+      `SELECT * FROM friendships_social 
+       WHERE (user_id_1 = $1 AND user_id_2 = $2) 
+          OR (user_id_1 = $2 AND user_id_2 = $1)`,
       [senderId, receiverId],
     );
-
-    console.log("called" + result.rows.length);
 
     if (result.rows.length > 0) {
-      return res.status(401).json({ error: "Users are already friends" });
+      const existing = result.rows[0];
+
+      // Case 1: They are already officially friends
+      if (existing.status === "accepted") {
+        return res.status(400).json({ error: "Users are already friends." });
+      }
+
+      // Case 2: The current user already sent a pending request
+      if (
+        Number(existing.user_id_1) === Number(senderId) &&
+        existing.status === "pending"
+      ) {
+        return res
+          .status(400)
+          .json({ error: "Friend request is already pending." });
+      }
+
+      // Case 3: The OTHER user sent a pending friend's request, and current user is now accepting it.
+      // This makes them mutual friends! Auto-accept it.
+      if (
+        Number(existing.user_id_2) === Number(senderId) &&
+        existing.status === "pending"
+      ) {
+        const updateResult = await pool.query(
+          `UPDATE friendships_social 
+           SET status = 'accepted' 
+           WHERE user_id_1 = $1 AND user_id_2 = $2
+           RETURNING *`,
+          [existing.user_id_1, existing.user_id_2],
+        );
+        // WHERE user_id_1 = $1 AND user_id_2 = $2
+        // WHERE user_id_1 = $2 AND user_id_2 = $1
+        // WHERE (user_id_1 = $1 AND user_id_2 = $2) OR (user_id_1 = $2 AND user_id_2 = $1)
+        return res.status(200).json(updateResult.rows[0]); // return object, not array
+      }
     }
 
-    //add ids into friendships table
-    result = await pool.query(
-      `INSERT INTO friendships_social (user_id_1, user_id_2) VALUES ($1, $2) RETURNING *`,
+    // Case 4: No previous relationship exists. Insert a brand new pending request.
+    const insertResult = await pool.query(
+      `INSERT INTO friendships_social (user_id_1, user_id_2, status) 
+       VALUES ($1, $2, 'pending') 
+       RETURNING *`,
       [senderId, receiverId],
     );
-    console.log("friendships is:" + result.rows);
-    res.status(201).json(result.rows[0]);
+
+    res.status(201).json(insertResult.rows[0]); // return object, not array
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Something went wrong" });
   }
 });
 
-//endpoint to accept request id
 app.put("/friendships/:requestorId", verifyToken, async (req, res) => {
   const { requestorId } = req.params;
   const requestorIdAsNumber = Number(requestorId);
@@ -160,7 +206,7 @@ app.put("/friendships/:requestorId", verifyToken, async (req, res) => {
   try {
     const result = await pool.query(
       `UPDATE friendships_social SET status = COALESCE($1, status)
-       WHERE (user_id_1 = $2 AND user_id_2 = $3) OR  (user_id_1 = $3 AND user_id_2 = $2) RETURNING *`,
+       WHERE user_id_1 = $3 AND user_id_2 = $2 RETURNING *`,
       [status, currentUserId, requestorIdAsNumber],
     );
 
@@ -194,12 +240,23 @@ app.post("/posts", verifyToken, async (req, res) => {
   }
 });
 
-//get users
 app.get("/users", verifyToken, async (req, res) => {
-  const userId = req.user.userId;
-
+  const currentUserId = req.user.userId;
   try {
-    const result = await pool.query(`SELECT * FROM users_social`);
+    const result = await pool.query(
+      `SELECT 
+        u.user_id, 
+        u.username, 
+        u.email,
+        f.status AS friendship_status,
+        f.user_id_1 AS request_sender
+       FROM users_social u
+       LEFT JOIN friendships_social f ON 
+         (f.user_id_1 = $1 AND f.user_id_2 = u.user_id) OR 
+         (f.user_id_2 = $1 AND f.user_id_1 = u.user_id)
+       WHERE u.user_id != $1`, // Hides the current logged-in user from the discover list
+      [currentUserId],
+    );
     res.json(result.rows);
   } catch (err) {
     console.error(err);
@@ -227,10 +284,10 @@ LEFT JOIN friendships_social f ON (
 WHERE 
     p.visibility = 'Public' 
     OR (p.visibility = 'Friends-only' AND f.status = 'accepted')
+    OR p.user_id = $1
 ORDER BY p.created_at DESC`,
       [userId],
     );
-    // console.log(result.rows);
     res.json(result.rows);
   } catch (err) {
     console.error(err);
