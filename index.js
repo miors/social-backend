@@ -240,6 +240,36 @@ app.post("/posts", verifyToken, async (req, res) => {
   }
 });
 
+app.delete("/posts/:id", verifyToken, async (req, res) => {
+  const postId = Number(req.params.id);
+  if (!Number.isSafeInteger(postId) || postId <= 0) {
+    return res.status(400).json({ error: "Invalid post ID" });
+  }
+
+  try {
+    const result = await pool.query(
+      "DELETE FROM posts_social WHERE post_id = $1 AND user_id = $2 RETURNING post_id",
+      [postId, req.user.userId],
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Post not found" });
+    }
+
+    res.status(204).end();
+  } catch (err) {
+    console.error(err);
+    if (err.code === "23503") {
+      return res
+        .status(409)
+        .json({
+          error: "Post is referenced by another record and cannot be deleted",
+        });
+    }
+    res.status(500).json({ error: "Something went wrong" });
+  }
+});
+
 app.get("/users", verifyToken, async (req, res) => {
   const currentUserId = req.user.userId;
   try {

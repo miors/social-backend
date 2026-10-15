@@ -179,7 +179,16 @@ This API uses a **Short-Lived Access Token** (15 minutes lifespan) alongside a *
   }
   ```
 
-#### 8. Retrieve Dynamic Social Feed
+#### 8. Delete a Post
+
+- **URL:** `/posts/:id`
+- **Method:** `DELETE`
+- **Authentication:** Required. Users can delete only their own posts.
+- **Responses:** `204 No Content` on success; `400` for an invalid ID; `404`
+  if the post does not exist or is not owned by the user; `409` if another
+  record references the post.
+
+#### 9. Retrieve Dynamic Social Feed
 
 - **URL:** `/posts`
 - **Method:** `GET`
