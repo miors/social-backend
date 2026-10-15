@@ -264,6 +264,29 @@ app.get("/users", verifyToken, async (req, res) => {
   }
 });
 
+app.get("/profile", verifyToken, async (req, res) => {
+  const currentUserId = req.user.userId;
+  try {
+    const result = await pool.query(
+      `SELECT 
+        u.user_id, 
+        u.username, 
+        u.email,
+        r.average_heart_rate AS average_heart_rate,
+        r.experience_level AS experience_level
+       FROM users_social u
+       LEFT JOIN runs_social r ON 
+         u.user_id = r.user_id
+       WHERE u.user_id = $1`,
+      [currentUserId],
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Something went wrong" });
+  }
+});
+
 app.get("/posts", verifyToken, async (req, res) => {
   const userId = req.user.userId;
 
