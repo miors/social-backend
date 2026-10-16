@@ -102,9 +102,11 @@ app.post("/login", async (req, res) => {
     }
 
     const user = result.rows[0];
-    const valid = await bcrypt.compare(password, user.password_hash);
 
-    if (!valid) {
+    if (
+      !user.password_hash ||
+      !(await bcrypt.compare(password, user.password_hash))
+    ) {
       return res.status(401).json({ error: "Invalid username or password" });
     }
 
@@ -124,6 +126,166 @@ app.post("/login", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Something went wrong" });
+  }
+});
+
+app.post("/auth/oauth/exchange", async (req, res) => {
+  const authorization = req.get("authorization");
+  const match = authorization?.match(/^Bearer\s+(.+)$/i);
+
+  if (!match) {
+    return res.status(401).json({ error: "Missing Supabase access token" });
+  }
+
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_PUBLISHABLE_KEY) {
+    return res.status(500).json({ error: "OAuth is not configured" });
+  }
+
+  let client;
+
+  try {
+    const supabaseResponse = await fetch(
+      `${process.env.SUPABASE_URL.replace(/\/$/, "")}/auth/v1/user`,
+      {
+        headers: {
+          apikey: process.env.SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${match[1]}`,
+        },
+      },
+    );
+
+    if (!supabaseResponse.ok) {
+      return res.status(401).json({ error: "Invalid Supabase access token" });
+    }
+
+    const supabaseUser = await supabaseResponse.json();
+    const email = supabaseUser.email?.trim().toLowerCase();
+
+    const isGoogleUser =
+      supabaseUser.app_metadata?.provider === "google" ||
+      supabaseUser.identities?.some(
+        (identity) => identity.provider === "google",
+      );
+
+    if (
+      !supabaseUser.id ||
+      !email ||
+      !supabaseUser.email_confirmed_at ||
+      !isGoogleUser
+    ) {
+      return res.status(401).json({
+        error: "A verified Google account is required",
+      });
+    }
+
+    client = await pool.connect();
+    await client.query("BEGIN");
+
+    let userResult = await client.query(
+      `SELECT user_id, username, supabase_user_id
+       FROM users_social
+       WHERE supabase_user_id = $1
+       FOR UPDATE`,
+      [supabaseUser.id],
+    );
+
+    let user = userResult.rows[0];
+
+    if (!user) {
+      const emailResult = await client.query(
+        `SELECT user_id, username, supabase_user_id
+         FROM users_social
+         WHERE LOWER(email) = LOWER($1)
+         FOR UPDATE`,
+        [email],
+      );
+
+      if (emailResult.rows.length > 1) {
+        const error = new Error("Multiple accounts match this email");
+        error.status = 409;
+        throw error;
+      }
+
+      const existingUser = emailResult.rows[0];
+
+      if (existingUser) {
+        if (
+          existingUser.supabase_user_id &&
+          existingUser.supabase_user_id !== supabaseUser.id
+        ) {
+          const error = new Error("This account is linked to another identity");
+          error.status = 409;
+          throw error;
+        }
+
+        userResult = await client.query(
+          `UPDATE users_social
+           SET supabase_user_id = $1
+           WHERE user_id = $2
+           RETURNING user_id, username, supabase_user_id`,
+          [supabaseUser.id, existingUser.user_id],
+        );
+        user = userResult.rows[0];
+      } else {
+        const displayName =
+          supabaseUser.user_metadata?.user_name ||
+          supabaseUser.user_metadata?.name ||
+          email.split("@")[0];
+
+        const usernameBase =
+          String(displayName)
+            .toLowerCase()
+            .replace(/[^a-z0-9_]/g, "")
+            .slice(0, 40) || "runner";
+        const username = `${usernameBase}_${supabaseUser.id
+          .replace(/-/g, "")
+          .slice(0, 8)}`;
+
+        userResult = await client.query(
+          `INSERT INTO users_social
+             (username, email, password_hash, supabase_user_id)
+           VALUES ($1, $2, NULL, $3)
+           RETURNING user_id, username, supabase_user_id`,
+          [username, email, supabaseUser.id],
+        );
+        user = userResult.rows[0];
+      }
+    }
+
+    await client.query("COMMIT");
+
+    const token = jwt.sign(
+      { userId: user.user_id, username: user.username },
+      process.env.JWT_SECRET,
+      { expiresIn: "15m" },
+    );
+
+    const refreshToken = jwt.sign(
+      { userId: user.user_id, username: user.username },
+      process.env.JWT_REFRESH_SECRET,
+      { expiresIn: "7d" },
+    );
+
+    return res.json({ token, refreshToken });
+  } catch (err) {
+    if (client) {
+      await client.query("ROLLBACK").catch(() => {});
+    }
+
+    if (err.code === "23505") {
+      return res.status(409).json({
+        error: "Account already exists or is linked; retry sign-in",
+      });
+    }
+
+    if (err.status) {
+      return res.status(err.status).json({ error: err.message });
+    }
+
+    console.error("OAuth token exchange failed:", err);
+    return res.status(500).json({ error: "Something went wrong" });
+  } finally {
+    client?.release();
   }
 });
 
@@ -260,11 +422,9 @@ app.delete("/posts/:id", verifyToken, async (req, res) => {
   } catch (err) {
     console.error(err);
     if (err.code === "23503") {
-      return res
-        .status(409)
-        .json({
-          error: "Post is referenced by another record and cannot be deleted",
-        });
+      return res.status(409).json({
+        error: "Post is referenced by another record and cannot be deleted",
+      });
     }
     res.status(500).json({ error: "Something went wrong" });
   }
