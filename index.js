@@ -1,9 +1,34 @@
 const express = require("express");
 const path = require("path");
 const app = express();
-
+const { randomUUID } = require("crypto");
+const multer = require("multer");
+const { createClient } = require("@supabase/supabase-js");
 const { Pool } = require("pg");
 require("dotenv").config();
+
+const supabaseStorage = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  },
+);
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 2 * 1024 * 1024 },
+  fileFilter(request, file, callback) {
+    if (!file.mimetype.startsWith("image/")) {
+      return callback(new Error("Only image files are allowed"));
+    }
+    callback(null, true);
+  },
+});
+
 const cors = require("cors");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
@@ -382,23 +407,79 @@ app.put("/friendships/:requestorId", verifyToken, async (req, res) => {
   }
 });
 
-app.post("/posts", verifyToken, async (req, res) => {
+// app.post("/posts", verifyToken, async (req, res) => {
+//   const userId = req.user.userId;
+//   const { title, content, visibility } = req.body;
+
+//   try {
+//     result = await pool.query(
+//       `INSERT INTO posts_social (title, content, visibility, user_id) VALUES ($1, $2, $3, $4) RETURNING *`,
+//       [title, content, visibility, userId],
+//     );
+
+//     if (result.rows.length === 0) {
+//       return res.status(404).json({ error: "Post not inserted" });
+//     }
+//     res.json(result.rows[0]);
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ error: "Something went wrong" });
+//   }
+// });
+
+app.post("/posts", verifyToken, upload.single("image"), async (req, res) => {
   const userId = req.user.userId;
   const { title, content, visibility } = req.body;
+  let objectPath;
+
+  if (!title?.trim() || !content?.trim()) {
+    return res.status(400).json({ error: "Title and content are required" });
+  }
+
+  if (!["Public", "Friends-only"].includes(visibility)) {
+    return res.status(400).json({ error: "Invalid visibility" });
+  }
 
   try {
-    result = await pool.query(
-      `INSERT INTO posts_social (title, content, visibility, user_id) VALUES ($1, $2, $3, $4) RETURNING *`,
-      [title, content, visibility, userId],
+    let imgUrl = null;
+
+    if (req.file) {
+      objectPath = `${userId}/${randomUUID()}`;
+
+      const { error: uploadError } = await supabaseStorage.storage
+        .from("post-images")
+        .upload(objectPath, req.file.buffer, {
+          contentType: req.file.mimetype,
+          upsert: false,
+        });
+
+      if (uploadError) throw uploadError;
+
+      imgUrl = supabaseStorage.storage
+        .from("post-images")
+        .getPublicUrl(objectPath).data.publicUrl;
+    }
+
+    const result = await pool.query(
+      `INSERT INTO posts_social
+        (title, content, visibility, user_id, img_url)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING *`,
+      [title.trim(), content.trim(), visibility, userId, imgUrl],
     );
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: "Post not inserted" });
-    }
-    res.json(result.rows[0]);
+    return res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Something went wrong" });
+    if (objectPath) {
+      const { error: cleanupError } = await supabaseStorage.storage
+        .from("post-images")
+        .remove([objectPath]);
+
+      if (cleanupError) console.error("Image cleanup failed:", cleanupError);
+    }
+
+    console.error("Post creation failed:", err);
+    return res.status(500).json({ error: "Could not create post" });
   }
 });
 
@@ -484,6 +565,7 @@ app.get("/posts", verifyToken, async (req, res) => {
     const result = await pool.query(
       `SELECT p.post_id, p.title,
     p.content,
+    p.img_url,
     p.visibility,
     p.created_at,
     u.user_id,
