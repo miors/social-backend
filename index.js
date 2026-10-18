@@ -6,27 +6,53 @@ const multer = require("multer");
 const { createClient } = require("@supabase/supabase-js");
 const { Pool } = require("pg");
 require("dotenv").config();
+
 const express = require("express");
 const cors = require("cors");
 const app = express();
 
-// 1. Define your strict CORS configuration options
-const corsOptions = {
-  origin: "https://railway.app",
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-};
+// 1. Completely permissive CORS setup
+app.use(
+  cors({
+    origin: true, // Dynamically allows WHATEVER origin is making the request
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["*"], // Allows all custom headers
+  }),
+);
 
-// 2. Pass options to the CORS middleware globally
-app.use(cors(corsOptions));
+// 2. Explicitly handle the preflight OPTIONS request
+app.options("*", (req, res) => {
+  res.header("Access-Control-Allow-Origin", req.header("Origin"));
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "*");
+  res.header("Access-Control-Allow-Credentials", "true");
+  return res.sendStatus(204);
+});
 
-// 3. FORCE intercept all HTTP OPTIONS (preflight) requests globally
-app.options("*", cors(corsOptions));
-
-// 4. Standard body parsers
+// 3. Parsers
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// const express = require("express");
+// const cors = require("cors");
+// const app = express();
+
+// // 1. Define your strict CORS configuration options
+// const corsOptions = {
+//   origin: "https://railway.app",
+//   credentials: true,
+//   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+//   allowedHeaders: ["Content-Type", "Authorization"],
+// };
+
+// // 2. Pass options to the CORS middleware globally
+// app.use(cors(corsOptions));
+
+// // 3. FORCE intercept all HTTP OPTIONS (preflight) requests globally
+// app.options("*", cors(corsOptions));
+
+// // 4. Standard body parsers
+// app.use(express.json());
+// app.use(express.urlencoded({ extended: true }));
 // const cors = require("cors");
 // const corsOptions = {
 //   origin: [
