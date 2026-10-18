@@ -11,33 +11,76 @@ const express = require("express");
 const cors = require("cors");
 const app = express();
 
-// 1. CONFIGURE CORS OPTIONS
-// This allows your specific frontend deployment origin to securely pass credentials
+// 1. HARDCODED MANUAL CORS MIDDLEWARE (Bypasses Express 5 Router Restrictions)
+app.use((req, res, next) => {
+  const allowedOrigin = "https://running-frontend-production.up.railway.app";
+
+  res.header("Access-Control-Allow-Origin", allowedOrigin);
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, X-Requested-With",
+  );
+  res.header("Access-Control-Allow-Credentials", "true");
+
+  // Immediately intercept preflight OPTIONS requests before they hit any paths
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+
+  next();
+});
+
+// 2. BACKUP PACKAGED CORS CONFIGURATION
 const corsOptions = {
-  origin: "https://railway.app",
+  origin: "https://running-frontend-production.up.railway.app",
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
 };
-
-// 2. APPLY GLOBAL CORS MIDDLEWARE
 app.use(cors(corsOptions));
 
-// 3. FIX CRASH: HANDLE PREFLIGHT OPTIONS WITH MODERNISED NAMED WILDCARD
-// Changed from '*' to '/*any' to comply with newer path-to-regexp versions
-app.options("/*any", cors(corsOptions));
-
-// 4. REQUEST BODY PARSERS
+// 3. PARSERS
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// 5. LOGGER MIDDLEWARE (To verify incoming traffic in Railway logs)
+// 4. CLEAN DATA LOGGING (Watch this inside your Railway dashboard runtime logs)
 app.use((req, res, next) => {
-  console.log(
-    `[${new Date().toISOString()}] ${req.method} request made to: ${req.url}`,
-  );
+  console.log(`Incoming request: ${req.method} ${req.url}`);
   next();
 });
+
+// const express = require("express");
+// const cors = require("cors");
+// const app = express();
+
+// // 1. CONFIGURE CORS OPTIONS
+// // This allows your specific frontend deployment origin to securely pass credentials
+// const corsOptions = {
+//   origin: "https://railway.app",
+//   credentials: true,
+//   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+//   allowedHeaders: ["Content-Type", "Authorization"],
+// };
+
+// // 2. APPLY GLOBAL CORS MIDDLEWARE
+// app.use(cors(corsOptions));
+
+// // 3. FIX CRASH: HANDLE PREFLIGHT OPTIONS WITH MODERNISED NAMED WILDCARD
+// // Changed from '*' to '/*any' to comply with newer path-to-regexp versions
+// app.options("/*any", cors(corsOptions));
+
+// // 4. REQUEST BODY PARSERS
+// app.use(express.json());
+// app.use(express.urlencoded({ extended: true }));
+
+// // 5. LOGGER MIDDLEWARE (To verify incoming traffic in Railway logs)
+// app.use((req, res, next) => {
+//   console.log(
+//     `[${new Date().toISOString()}] ${req.method} request made to: ${req.url}`,
+//   );
+//   next();
+// });
 
 // const express = require("express");
 // const cors = require("cors");
@@ -656,6 +699,11 @@ ORDER BY p.created_at DESC`,
     console.error(err);
     res.status(500).json({ error: "Something went wrong" });
   }
+});
+
+// 6. EXPRESS 5 REGEX COMPLIANT FALLBACK CATCH-ALL
+app.get(/(.*)/, (req, res) => {
+  res.status(404).json({ error: "Endpoint route non-existent." });
 });
 
 const port = process.env.PORT || 3000;
