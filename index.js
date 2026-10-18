@@ -407,26 +407,6 @@ app.put("/friendships/:requestorId", verifyToken, async (req, res) => {
   }
 });
 
-// app.post("/posts", verifyToken, async (req, res) => {
-//   const userId = req.user.userId;
-//   const { title, content, visibility } = req.body;
-
-//   try {
-//     result = await pool.query(
-//       `INSERT INTO posts_social (title, content, visibility, user_id) VALUES ($1, $2, $3, $4) RETURNING *`,
-//       [title, content, visibility, userId],
-//     );
-
-//     if (result.rows.length === 0) {
-//       return res.status(404).json({ error: "Post not inserted" });
-//     }
-//     res.json(result.rows[0]);
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).json({ error: "Something went wrong" });
-//   }
-// });
-
 app.post("/posts", verifyToken, upload.single("image"), async (req, res) => {
   const userId = req.user.userId;
   const { title, content, visibility } = req.body;

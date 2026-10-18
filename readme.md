@@ -45,6 +45,7 @@ CREATE TABLE posts_social (
     title TEXT NOT NULL,
     content TEXT NOT NULL,
     visibility VARCHAR(20) DEFAULT 'Public', -- 'Public', 'Friends-only'
+    img_url TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 ```
@@ -75,6 +76,26 @@ JWT_REFRESH_SECRET=your_even_more_secure_refresh_token_secret_key
    node index.js
    ```
    _The server defaults to port `3000` (`http://localhost:3000`)._
+
+### Dev Feed Seed
+
+The one-off Running Friends seed replaces `posts_social` with 10 public running-themed posts and uploads one matching image per post into the `post-images` bucket. It uses the existing dev authors `alice_green`, `bob_builder`, and `charlie_brown`; it does not create accounts or remove old Storage objects.
+
+Run a read-only preflight first:
+
+```bash
+npm run seed:running-posts
+```
+
+Only after confirming the printed database host and Supabase project ref are the intended dev targets, apply the replacement by passing those exact values:
+
+```bash
+npm run seed:running-posts -- --apply --confirm-dev-reset --expected-db-host=YOUR_DEV_DATABASE_HOST --expected-supabase-ref=YOUR_DEV_SUPABASE_PROJECT_REF
+```
+
+Replace both uppercase placeholders with the exact values printed by the dry run.
+
+The script refuses mismatched targets, missing schema/authors, or posts referenced by another table. It removes only images uploaded by the current seed run if the database transaction fails.
 
 ---
 
