@@ -11,27 +11,59 @@ const express = require("express");
 const cors = require("cors");
 const app = express();
 
-// 1. Completely permissive CORS setup
-app.use(
-  cors({
-    origin: true, // Dynamically allows WHATEVER origin is making the request
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["*"], // Allows all custom headers
-  }),
-);
+// 1. CONFIGURE CORS OPTIONS
+// This allows your specific frontend deployment origin to securely pass credentials
+const corsOptions = {
+  origin: "https://railway.app",
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
 
-// 2. Explicitly handle the preflight OPTIONS request
-app.options("*", (req, res) => {
-  res.header("Access-Control-Allow-Origin", req.header("Origin"));
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "*");
-  res.header("Access-Control-Allow-Credentials", "true");
-  return res.sendStatus(204);
+// 2. APPLY GLOBAL CORS MIDDLEWARE
+app.use(cors(corsOptions));
+
+// 3. FIX CRASH: HANDLE PREFLIGHT OPTIONS WITH MODERNISED NAMED WILDCARD
+// Changed from '*' to '/*any' to comply with newer path-to-regexp versions
+app.options("/*any", cors(corsOptions));
+
+// 4. REQUEST BODY PARSERS
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// 5. LOGGER MIDDLEWARE (To verify incoming traffic in Railway logs)
+app.use((req, res, next) => {
+  console.log(
+    `[${new Date().toISOString()}] ${req.method} request made to: ${req.url}`,
+  );
+  next();
 });
 
-// 3. Parsers
-app.use(express.json());
+// const express = require("express");
+// const cors = require("cors");
+// const app = express();
+
+// // 1. Completely permissive CORS setup
+// app.use(
+//   cors({
+//     origin: true, // Dynamically allows WHATEVER origin is making the request
+//     credentials: true,
+//     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+//     allowedHeaders: ["*"], // Allows all custom headers
+//   }),
+// );
+
+// // 2. Explicitly handle the preflight OPTIONS request
+// app.options("*", (req, res) => {
+//   res.header("Access-Control-Allow-Origin", req.header("Origin"));
+//   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+//   res.header("Access-Control-Allow-Headers", "*");
+//   res.header("Access-Control-Allow-Credentials", "true");
+//   return res.sendStatus(204);
+// });
+
+// // 3. Parsers
+// app.use(express.json());
 // const express = require("express");
 // const cors = require("cors");
 // const app = express();
