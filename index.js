@@ -1,24 +1,45 @@
 const express = require("express");
 const path = require("path");
-const app = express();
+// const app = express();
 const { randomUUID } = require("crypto");
 const multer = require("multer");
 const { createClient } = require("@supabase/supabase-js");
 const { Pool } = require("pg");
 require("dotenv").config();
+const express = require("express");
 const cors = require("cors");
+const app = express();
+
+// 1. Define your strict CORS configuration options
 const corsOptions = {
-  origin: [
-    "https://running-frontend-production.up.railway.app",
-    "http://localhost:5173",
-  ],
+  origin: "https://railway.app",
   credentials: true,
-  methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
-  maxAge: 86400,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
 };
 
+// 2. Pass options to the CORS middleware globally
 app.use(cors(corsOptions));
+
+// 3. FORCE intercept all HTTP OPTIONS (preflight) requests globally
+app.options("*", cors(corsOptions));
+
+// 4. Standard body parsers
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+// const cors = require("cors");
+// const corsOptions = {
+//   origin: [
+//     "https://running-frontend-production.up.railway.app",
+//     "http://localhost:5173",
+//   ],
+//   credentials: true,
+//   methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
+//   maxAge: 86400,
+// };
+
+// app.use(cors(corsOptions));
+// app.use(express.json());
 
 const supabaseStorage = createClient(
   process.env.SUPABASE_URL,
