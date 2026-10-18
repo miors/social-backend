@@ -7,6 +7,8 @@ const { createClient } = require("@supabase/supabase-js");
 const { Pool } = require("pg");
 require("dotenv").config();
 const cors = require("cors");
+app.use(cors());
+app.use(express.json());
 
 const supabaseStorage = createClient(
   process.env.SUPABASE_URL,
@@ -38,9 +40,6 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
 });
-
-app.use(cors());
-app.use(express.json());
 
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
