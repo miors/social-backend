@@ -8,28 +8,67 @@ const { Pool } = require("pg");
 require("dotenv").config();
 
 const express = require("express");
-const cors = require("cors");
 const app = express();
 
-// 1. HARDCODED MANUAL CORS MIDDLEWARE (Bypasses Express 5 Router Restrictions)
+// ==========================================
+// 1. GLOBAL NATIVE HTTP INTERCEPTOR (FIRST)
+// ==========================================
 app.use((req, res, next) => {
-  const allowedOrigin = "https://running-frontend-production.up.railway.app";
-
-  res.header("Access-Control-Allow-Origin", allowedOrigin);
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  res.header(
-    "Access-Control-Allow-Headers",
-    "Content-Type, Authorization, X-Requested-With",
+  // Allow the strict origin sending the data
+  res.setHeader("Access-Control-Allow-Origin", "https://railway.app");
+  res.setHeader(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, OPTIONS",
   );
-  res.header("Access-Control-Allow-Credentials", "true");
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, X-Requested-With, Accept",
+  );
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  res.setHeader("X-Content-Type-Options", "nosniff");
 
-  // Immediately intercept preflight OPTIONS requests before they hit any paths
+  // Fast-track browser OPTIONS handshake checks immediately
   if (req.method === "OPTIONS") {
-    return res.sendStatus(204);
+    return res.status(204).end();
   }
-
   next();
 });
+
+// ==========================================
+// 2. DATA PROCESSING MIDDLEWARES
+// ==========================================
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Debug logging to watch incoming data maps via Railway Dashboard
+app.use((req, res, next) => {
+  console.log(`[ROUTE TRIGGER]: ${req.method} request received -> ${req.path}`);
+  next();
+});
+
+// const express = require("express");
+// const cors = require("cors");
+// const app = express();
+
+// // 1. HARDCODED MANUAL CORS MIDDLEWARE (Bypasses Express 5 Router Restrictions)
+// app.use((req, res, next) => {
+//   const allowedOrigin = "https://running-frontend-production.up.railway.app";
+
+//   res.header("Access-Control-Allow-Origin", allowedOrigin);
+//   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+//   res.header(
+//     "Access-Control-Allow-Headers",
+//     "Content-Type, Authorization, X-Requested-With",
+//   );
+//   res.header("Access-Control-Allow-Credentials", "true");
+
+//   // Immediately intercept preflight OPTIONS requests before they hit any paths
+//   if (req.method === "OPTIONS") {
+//     return res.sendStatus(204);
+//   }
+
+//   next();
+// });
 
 // 2. BACKUP PACKAGED CORS CONFIGURATION
 const corsOptions = {
@@ -701,9 +740,8 @@ ORDER BY p.created_at DESC`,
   }
 });
 
-// 6. EXPRESS 5 REGEX COMPLIANT FALLBACK CATCH-ALL
-app.get(/(.*)/, (req, res) => {
-  res.status(404).json({ error: "Endpoint route non-existent." });
+app.use("/*splat", (req, res) => {
+  res.status(404).json({ error: "The targeted route path does not exist." });
 });
 
 const port = process.env.PORT || 3000;
