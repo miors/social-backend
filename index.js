@@ -10,6 +10,23 @@ const cors = require("cors");
 app.use(cors());
 app.use(express.json());
 
+const ORIGINS = ["https://running-frontend-production.up.railway.app/"]; // add others if needed
+const corsOptions = {
+  origin: ORIGINS,
+  credentials: true,
+  methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
+  // Tip: omit allowedHeaders to let the library reflect Access-Control-Request-Headers
+  maxAge: 86400,
+};
+
+app.use((req, res, next) => {
+  res.set("Vary", "Origin");
+  next();
+});
+app.options("*", cors(corsOptions)); // preflight first
+app.use(cors(corsOptions)); // then regular routes
+// ⬇ put auth/routers AFTER cors
+
 const supabaseStorage = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY,
