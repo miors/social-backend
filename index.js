@@ -7,25 +7,18 @@ const { createClient } = require("@supabase/supabase-js");
 const { Pool } = require("pg");
 require("dotenv").config();
 const cors = require("cors");
-app.use(cors());
-app.use(express.json());
-
-const ORIGINS = ["https://running-frontend-production.up.railway.app/"]; // add others if needed
 const corsOptions = {
-  origin: ORIGINS,
+  origin: [
+    "https://running-frontend-production.up.railway.app",
+    "http://localhost:5173",
+  ],
   credentials: true,
   methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
-  // Tip: omit allowedHeaders to let the library reflect Access-Control-Request-Headers
   maxAge: 86400,
 };
 
-app.use((req, res, next) => {
-  res.set("Vary", "Origin");
-  next();
-});
-app.options("*", cors(corsOptions)); // preflight first
-app.use(cors(corsOptions)); // then regular routes
-// ⬇ put auth/routers AFTER cors
+app.use(cors(corsOptions));
+app.use(express.json());
 
 const supabaseStorage = createClient(
   process.env.SUPABASE_URL,
@@ -586,6 +579,7 @@ ORDER BY p.created_at DESC`,
   }
 });
 
-app.listen(process.env.PORT || 3000, () => {
-  console.log("App is listening on port 3000");
+const port = process.env.PORT || 3000;
+app.listen(port, () => {
+  console.log(`App is listening on port ${port}`);
 });
