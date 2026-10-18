@@ -6,6 +6,7 @@ const multer = require("multer");
 const { createClient } = require("@supabase/supabase-js");
 const { Pool } = require("pg");
 require("dotenv").config();
+const cors = require("cors");
 
 const supabaseStorage = createClient(
   process.env.SUPABASE_URL,
@@ -29,7 +30,6 @@ const upload = multer({
   },
 });
 
-const cors = require("cors");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
