@@ -1,185 +1,11 @@
-// const express = require("express");
+const express = require("express");
 const path = require("path");
-// const app = express();
+const app = express();
 const { randomUUID } = require("crypto");
 const multer = require("multer");
 const { createClient } = require("@supabase/supabase-js");
 const { Pool } = require("pg");
 require("dotenv").config();
-
-const express = require("express");
-const app = express();
-
-// ==========================================
-// 1. GLOBAL NATIVE HTTP INTERCEPTOR (FIRST)
-// ==========================================
-app.use((req, res, next) => {
-  // Allow the strict origin sending the data
-  res.setHeader("Access-Control-Allow-Origin", "https://railway.app");
-  res.setHeader(
-    "Access-Control-Allow-Methods",
-    "GET, POST, PUT, DELETE, OPTIONS",
-  );
-  res.setHeader(
-    "Access-Control-Allow-Headers",
-    "Content-Type, Authorization, X-Requested-With, Accept",
-  );
-  res.setHeader("Access-Control-Allow-Credentials", "true");
-  res.setHeader("X-Content-Type-Options", "nosniff");
-
-  // Fast-track browser OPTIONS handshake checks immediately
-  if (req.method === "OPTIONS") {
-    return res.status(204).end();
-  }
-  next();
-});
-
-// ==========================================
-// 2. DATA PROCESSING MIDDLEWARES
-// ==========================================
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// Debug logging to watch incoming data maps via Railway Dashboard
-app.use((req, res, next) => {
-  console.log(`[ROUTE TRIGGER]: ${req.method} request received -> ${req.path}`);
-  next();
-});
-
-// const express = require("express");
-// const cors = require("cors");
-// const app = express();
-
-// // 1. HARDCODED MANUAL CORS MIDDLEWARE (Bypasses Express 5 Router Restrictions)
-// app.use((req, res, next) => {
-//   const allowedOrigin = "https://running-frontend-production.up.railway.app";
-
-//   res.header("Access-Control-Allow-Origin", allowedOrigin);
-//   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-//   res.header(
-//     "Access-Control-Allow-Headers",
-//     "Content-Type, Authorization, X-Requested-With",
-//   );
-//   res.header("Access-Control-Allow-Credentials", "true");
-
-//   // Immediately intercept preflight OPTIONS requests before they hit any paths
-//   if (req.method === "OPTIONS") {
-//     return res.sendStatus(204);
-//   }
-
-//   next();
-// });
-
-// 2. BACKUP PACKAGED CORS CONFIGURATION
-const corsOptions = {
-  origin: "https://running-frontend-production.up.railway.app",
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
-};
-app.use(cors(corsOptions));
-
-// 3. PARSERS
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// 4. CLEAN DATA LOGGING (Watch this inside your Railway dashboard runtime logs)
-app.use((req, res, next) => {
-  console.log(`Incoming request: ${req.method} ${req.url}`);
-  next();
-});
-
-// const express = require("express");
-// const cors = require("cors");
-// const app = express();
-
-// // 1. CONFIGURE CORS OPTIONS
-// // This allows your specific frontend deployment origin to securely pass credentials
-// const corsOptions = {
-//   origin: "https://railway.app",
-//   credentials: true,
-//   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-//   allowedHeaders: ["Content-Type", "Authorization"],
-// };
-
-// // 2. APPLY GLOBAL CORS MIDDLEWARE
-// app.use(cors(corsOptions));
-
-// // 3. FIX CRASH: HANDLE PREFLIGHT OPTIONS WITH MODERNISED NAMED WILDCARD
-// // Changed from '*' to '/*any' to comply with newer path-to-regexp versions
-// app.options("/*any", cors(corsOptions));
-
-// // 4. REQUEST BODY PARSERS
-// app.use(express.json());
-// app.use(express.urlencoded({ extended: true }));
-
-// // 5. LOGGER MIDDLEWARE (To verify incoming traffic in Railway logs)
-// app.use((req, res, next) => {
-//   console.log(
-//     `[${new Date().toISOString()}] ${req.method} request made to: ${req.url}`,
-//   );
-//   next();
-// });
-
-// const express = require("express");
-// const cors = require("cors");
-// const app = express();
-
-// // 1. Completely permissive CORS setup
-// app.use(
-//   cors({
-//     origin: true, // Dynamically allows WHATEVER origin is making the request
-//     credentials: true,
-//     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-//     allowedHeaders: ["*"], // Allows all custom headers
-//   }),
-// );
-
-// // 2. Explicitly handle the preflight OPTIONS request
-// app.options("*", (req, res) => {
-//   res.header("Access-Control-Allow-Origin", req.header("Origin"));
-//   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-//   res.header("Access-Control-Allow-Headers", "*");
-//   res.header("Access-Control-Allow-Credentials", "true");
-//   return res.sendStatus(204);
-// });
-
-// // 3. Parsers
-// app.use(express.json());
-// const express = require("express");
-// const cors = require("cors");
-// const app = express();
-
-// // 1. Define your strict CORS configuration options
-// const corsOptions = {
-//   origin: "https://railway.app",
-//   credentials: true,
-//   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-//   allowedHeaders: ["Content-Type", "Authorization"],
-// };
-
-// // 2. Pass options to the CORS middleware globally
-// app.use(cors(corsOptions));
-
-// // 3. FORCE intercept all HTTP OPTIONS (preflight) requests globally
-// app.options("*", cors(corsOptions));
-
-// // 4. Standard body parsers
-// app.use(express.json());
-// app.use(express.urlencoded({ extended: true }));
-// const cors = require("cors");
-// const corsOptions = {
-//   origin: [
-//     "https://running-frontend-production.up.railway.app",
-//     "http://localhost:5173",
-//   ],
-//   credentials: true,
-//   methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
-//   maxAge: 86400,
-// };
-
-// app.use(cors(corsOptions));
-// app.use(express.json());
 
 const supabaseStorage = createClient(
   process.env.SUPABASE_URL,
@@ -203,6 +29,7 @@ const upload = multer({
   },
 });
 
+const cors = require("cors");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
@@ -211,6 +38,9 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
 });
+
+app.use(cors());
+app.use(express.json());
 
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
@@ -739,12 +569,7 @@ ORDER BY p.created_at DESC`,
     res.status(500).json({ error: "Something went wrong" });
   }
 });
-
-app.use("/*splat", (req, res) => {
-  res.status(404).json({ error: "The targeted route path does not exist." });
-});
-
-const port = process.env.PORT || 3000;
-app.listen(port, () => {
-  console.log(`App is listening on port ${port}`);
+//remove process.env.PORT || 3000 to avoid conflict with Railway's port assignment
+app.listen(3000, () => {
+  console.log("App is listening on port 3000");
 });
