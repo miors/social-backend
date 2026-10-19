@@ -569,7 +569,7 @@ ORDER BY p.created_at DESC`,
     res.status(500).json({ error: "Something went wrong" });
   }
 });
-
+//remove process.env.PORT || 3000 to avoid conflict with Railway's port assignment
 app.listen(3000, () => {
   console.log("App is listening on port 3000");
 });
